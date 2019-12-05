@@ -1,49 +1,34 @@
-#[macro_use]
-extern crate error_chain;
-
 use std::env;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Result};
 use std::ops::{Div, Sub};
 
-use errors::*;
+fn main() -> Result<()> {
+    let masses = read_masses(&determine_input_filename())?;
 
-mod errors {
-    error_chain! {
-        foreign_links {
-            Io(::std::io::Error);
-        }
-    }
+    let sum: u32 = masses.iter().map(fuel_required).sum();
+    println!("{}", sum);
+    Ok(())
 }
 
-fn main() {
-    if let Err(e) = run() {
-        println!("error: {}", e);
-        std::process::exit(1);
-    }
+fn determine_input_filename() -> String {
+    env::args().nth(1).expect("Expected input filename")
 }
 
-fn run() -> Result<()> {
-    let file = env::args()
-        .nth(1)
-        .ok_or(Error::from("Expecting filename argument"))?;
-
-    let file = File::open(file)?;
+fn read_masses(filename: &str) -> Result<Vec<u32>> {
+    let file = File::open(filename)?;
     let file = BufReader::new(file);
-    let sum: u32 = file
+    Ok(file
         .lines()
         .map(|line| {
             line.expect("Could not read line")
                 .parse::<u32>()
                 .expect("Could not parse mass")
         })
-        .map(fuel_required)
-        .sum();
-    println!("{}", sum);
-    Ok(())
+        .collect())
 }
 
-fn fuel_required(mass: u32) -> u32 {
+fn fuel_required(mass: &u32) -> u32 {
     mass.div(3).sub(2)
 }
 
@@ -53,21 +38,21 @@ mod tests {
 
     #[test]
     fn mass_of_12_needs_2_fuel() {
-        assert_eq!(2, fuel_required(12));
+        assert_eq!(2, fuel_required(&12));
     }
 
     #[test]
     fn mass_of_14_needs_2_fuel() {
-        assert_eq!(2, fuel_required(14));
+        assert_eq!(2, fuel_required(&14));
     }
 
     #[test]
     fn mass_of_1969_needs_654_fuel() {
-        assert_eq!(654, fuel_required(1969));
+        assert_eq!(654, fuel_required(&1969));
     }
 
     #[test]
     fn mass_of_100756_needs_33583_fuel() {
-        assert_eq!(33583, fuel_required(100756));
+        assert_eq!(33583, fuel_required(&100756));
     }
 }

@@ -4,15 +4,7 @@ use std::iter::successors;
 use std::ops::Div;
 
 fn main() {
-    let masses: Vec<u32> = io::stdin()
-        .lock()
-        .lines()
-        .map(|line| {
-            line.expect("Could not read line")
-                .parse::<u32>()
-                .expect("Could not parse mass")
-        })
-        .collect();
+    let masses = read_masses();
     let summed_fuel_requirements: u32 = masses.iter().cloned().map(fuel_required).sum();
     println!(
         "The sum of the fuel requirements is {}",
@@ -22,7 +14,19 @@ fn main() {
     println!(
         "The sum of the total fuel requirements is {}",
         total_fuel_required
-    )
+    );
+}
+
+fn read_masses() -> Vec<u32> {
+    io::stdin()
+        .lock()
+        .lines()
+        .map(|line| {
+            line.expect("Could not read line")
+                .parse::<u32>()
+                .expect("Could not parse mass")
+        })
+        .collect()
 }
 
 fn total_fuel_required(mass: u32) -> u32 {
@@ -38,8 +42,9 @@ fn fuel_required(mass: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::fuel_required;
     use crate::total_fuel_required;
+
+    use super::fuel_required;
 
     #[test]
     fn mass_of_12_needs_2_fuel() {
@@ -70,6 +75,7 @@ mod tests {
     fn total_fuel_for_mass_1969_is_966() {
         assert_eq!(966, total_fuel_required(1969));
     }
+
     #[test]
     fn total_fuel_for_mass_100756_is_50346() {
         assert_eq!(50346, total_fuel_required(100_756));

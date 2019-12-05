@@ -30,9 +30,9 @@ fn read_masses() -> Vec<u32> {
 }
 
 fn total_fuel_required(mass: u32) -> u32 {
-    successors(Some(mass), |&mass| Some(fuel_required(mass)))
+    successors(Some(mass), |&fuel_mass| Some(fuel_required(fuel_mass)))
         .skip(1)
-        .take_while(|&fuel| fuel > 0)
+        .take_while(|&fuel_mass| fuel_mass > 0)
         .sum()
 }
 

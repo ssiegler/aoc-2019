@@ -3,14 +3,16 @@ pub struct Computer {
     memory: Vec<usize>,
 }
 
-impl Computer {
-    pub fn new() -> Self {
+impl Default for Computer {
+    fn default() -> Self {
         Computer {
             instruction_pointer: 0,
             memory: vec![99],
         }
     }
+}
 
+impl Computer {
     pub fn load(&mut self, program: Vec<usize>) {
         self.instruction_pointer = 0;
         self.memory = program;
@@ -19,6 +21,11 @@ impl Computer {
     pub fn restore_alarm_state(&mut self) {
         self.memory[1] = 12;
         self.memory[2] = 2;
+    }
+
+    pub fn set_inputs(&mut self, noun: usize, verb: usize) {
+        self.memory[1] = noun;
+        self.memory[2] = verb;
     }
 
     pub fn execute_program(&mut self) {
@@ -64,7 +71,7 @@ mod tests {
 
     #[test]
     fn opcode_1_adds_arguments() {
-        let mut computer = Computer::new();
+        let mut computer = Computer::default();
         computer.load(vec![1, 0, 0, 0, 99]);
         computer.execute_program();
         assert_eq!(vec![2, 0, 0, 0, 99], computer.memory);
@@ -72,7 +79,7 @@ mod tests {
 
     #[test]
     fn opcode_2_multiplies_arguments() {
-        let mut computer = Computer::new();
+        let mut computer = Computer::default();
         computer.load(vec![2, 3, 0, 3, 99]);
         computer.execute_program();
         assert_eq!(vec![2, 3, 0, 6, 99], computer.memory);
@@ -80,7 +87,7 @@ mod tests {
 
     #[test]
     fn opcode_99_terminates() {
-        let mut computer = Computer::new();
+        let mut computer = Computer::default();
         computer.load(vec![2, 4, 4, 5, 99, 0]);
         computer.execute_program();
         assert_eq!(vec![2, 4, 4, 5, 99, 9801], computer.memory);
@@ -88,7 +95,7 @@ mod tests {
 
     #[test]
     fn programs_can_self_modify() {
-        let mut computer = Computer::new();
+        let mut computer = Computer::default();
         computer.load(vec![1, 1, 1, 4, 99, 5, 6, 0, 99]);
         computer.execute_program();
         assert_eq!(vec![30, 1, 1, 4, 2, 5, 6, 0, 99], computer.memory);

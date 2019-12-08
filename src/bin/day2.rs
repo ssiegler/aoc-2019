@@ -5,7 +5,7 @@ use aoc_2019::intcode::Computer;
 
 fn main() {
     let program = read_program();
-    let mut computer = Computer::new();
+    let mut computer = Computer::default();
     computer.load(program);
     computer.restore_alarm_state();
     computer.execute_program();

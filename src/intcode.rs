@@ -13,9 +13,9 @@ impl Default for Computer {
 }
 
 impl Computer {
-    pub fn load(&mut self, program: Vec<usize>) {
+    pub fn load(&mut self, program: &[usize]) {
         self.instruction_pointer = 0;
-        self.memory = program;
+        self.memory = program.to_vec();
     }
 
     pub fn restore_alarm_state(&mut self) {
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn opcode_1_adds_arguments() {
         let mut computer = Computer::default();
-        computer.load(vec![1, 0, 0, 0, 99]);
+        computer.load(&[1, 0, 0, 0, 99]);
         computer.execute_program();
         assert_eq!(vec![2, 0, 0, 0, 99], computer.memory);
     }
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn opcode_2_multiplies_arguments() {
         let mut computer = Computer::default();
-        computer.load(vec![2, 3, 0, 3, 99]);
+        computer.load(&[2, 3, 0, 3, 99]);
         computer.execute_program();
         assert_eq!(vec![2, 3, 0, 6, 99], computer.memory);
     }
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn opcode_99_terminates() {
         let mut computer = Computer::default();
-        computer.load(vec![2, 4, 4, 5, 99, 0]);
+        computer.load(&[2, 4, 4, 5, 99, 0]);
         computer.execute_program();
         assert_eq!(vec![2, 4, 4, 5, 99, 9801], computer.memory);
     }
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn programs_can_self_modify() {
         let mut computer = Computer::default();
-        computer.load(vec![1, 1, 1, 4, 99, 5, 6, 0, 99]);
+        computer.load(&[1, 1, 1, 4, 99, 5, 6, 0, 99]);
         computer.execute_program();
         assert_eq!(vec![30, 1, 1, 4, 2, 5, 6, 0, 99], computer.memory);
     }

@@ -1,14 +1,12 @@
 use core::iter;
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::io;
 use std::io::BufRead;
 use std::iter::FromIterator;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use crate::MovementErrorKind::InvalidDirection;
-
-#[derive(Eq, PartialOrd, PartialEq, Ord, Default, Clone, Debug)]
+#[derive(Eq, PartialEq, Hash, Default, Clone, Debug)]
 struct Point {
     x: i32,
     y: i32,
@@ -80,18 +78,18 @@ impl FromStr for Movement {
             "L" => Ok(Movement::Left(s[1..].parse()?)),
             "R" => Ok(Movement::Right(s[1..].parse()?)),
             _ => Err(ParseMovementError {
-                kind: InvalidDirection,
+                kind: MovementErrorKind::InvalidDirection,
             }),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Wire(BTreeSet<Point>);
+struct Wire(HashSet<Point>);
 
 impl Wire {
     fn new() -> Self {
-        Wire(BTreeSet::new())
+        Wire(HashSet::new())
     }
 
     fn closest_intersection(&self, other: &Self) -> Option<Point> {

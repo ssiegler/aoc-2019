@@ -6,18 +6,18 @@ use std::iter::FromIterator;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-#[derive(Eq, PartialEq, Hash, Default, Clone, Debug)]
+#[derive(Eq, PartialEq, Hash, Default, Copy, Clone, Debug)]
 struct Point {
     x: i32,
     y: i32,
 }
 
 impl Point {
-    fn distance(&self) -> i32 {
+    fn distance(self) -> i32 {
         self.x.abs() + self.y.abs()
     }
 
-    fn draw(&self, movement: &Movement) -> Vec<Point> {
+    fn draw(self, movement: &Movement) -> Vec<Point> {
         let to_point = |(x, y)| Point { x, y };
         match movement {
             Movement::Up(distance) => iter::repeat(self.x)
@@ -85,17 +85,41 @@ impl FromStr for Movement {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Wire(HashSet<Point>);
+struct Wire {
+    points: Vec<Point>,
+}
 
 impl Wire {
     fn new() -> Self {
-        Wire(HashSet::new())
+        Wire { points: Vec::new() }
     }
 
     fn closest_intersection(&self, other: &Self) -> Option<Point> {
-        let mut intersections: Vec<Point> = self.0.intersection(&other.0).cloned().collect();
-        intersections.sort_by_key(Point::distance);
+        let mut intersections: Vec<Point> = self.intersections(other);
+        intersections.sort_by_key(|point| point.distance());
         intersections.get(1).cloned()
+    }
+
+    fn intersections(&self, other: &Self) -> Vec<Point> {
+        self.points
+            .iter()
+            .cloned()
+            .collect::<HashSet<Point>>()
+            .intersection(&other.points.iter().cloned().collect::<HashSet<Point>>())
+            .cloned()
+            .collect()
+    }
+
+    fn steps(&self, target: Point) -> Option<usize> {
+        self.points.iter().position(|point| *point == target)
+    }
+
+    fn minimal_intersection_steps(&self, other: &Self) -> Option<usize> {
+        self.intersections(other)
+            .into_iter()
+            .filter(|point| *point != Point::default())
+            .map(|point| self.steps(point).unwrap() + other.steps(point).unwrap())
+            .min()
     }
 }
 
@@ -106,9 +130,12 @@ impl FromIterator<Movement> for Wire {
 
         for movement in iter {
             let points = point.draw(&movement);
-            wire.0.extend(points.iter().cloned());
-            point = points.last().cloned().unwrap();
+            if let Some((last, points)) = points.split_last() {
+                wire.points.extend(points);
+                point = *last;
+            }
         }
+        wire.points.push(point);
 
         wire
     }
@@ -138,6 +165,12 @@ fn main() {
             .closest_intersection(&wires[1])
             .expect("No intersection")
             .distance()
+    );
+    println!(
+        "Steps to fastest intersection: {}",
+        wires[0]
+            .minimal_intersection_steps(&wires[1])
+            .expect("No intersection")
     );
 }
 
@@ -181,5 +214,23 @@ U98,R91,D20,R16,D67,R40,U7,R15,U6,R7"
             wires[0].closest_intersection(&wires[1]).unwrap().distance(),
             135
         )
+    }
+
+    #[test]
+    fn part2_example_1() {
+        let wires = [
+            Wire::from_str("R8,U5,L5,D3").unwrap(),
+            Wire::from_str("U7,R6,D4,L4").unwrap(),
+        ];
+        assert_eq!(Some(30), wires[0].minimal_intersection_steps(&wires[1]));
+    }
+
+    #[test]
+    fn part2_example_2() {
+        let wires = [
+            Wire::from_str("R75,D30,R83,U83,L12,D49,R71,U7,L72").unwrap(),
+            Wire::from_str("U62,R66,U55,R34,D71,R55,D58,R83").unwrap(),
+        ];
+        assert_eq!(Some(610), wires[0].minimal_intersection_steps(&wires[1]));
     }
 }

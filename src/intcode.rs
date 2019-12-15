@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 pub struct Computer {
     instruction_pointer: usize,
     memory: Vec<i32>,
+    output: Vec<i32>,
 }
 
 impl Default for Computer {
@@ -10,6 +11,7 @@ impl Default for Computer {
         Computer {
             instruction_pointer: 0,
             memory: vec![99],
+            output: vec![],
         }
     }
 }
@@ -72,6 +74,12 @@ impl Computer {
                     self.memory[operand1_address] * self.memory[operand2_address];
                 self.instruction_pointer += 4;
             }
+            4 => {
+                let operand1_address =
+                    usize::try_from(self.load_argument(1)).expect("Invalid address");
+                self.output.push(self.load_argument(operand1_address));
+                self.instruction_pointer += 2;
+            }
             _ => {}
         }
     }
@@ -119,5 +127,13 @@ mod tests {
         computer.load(&[1, 5, 6, 0, 99, 5, -6]);
         computer.execute_program();
         assert_eq!(computer.memory, vec![-1, 5, 6, 0, 99, 5, -6]);
+    }
+
+    #[test]
+    fn supports_output() {
+        let mut computer = Computer::default();
+        computer.load(&[4, 0, 99]);
+        computer.execute_program();
+        assert_eq!(computer.output, &[4]);
     }
 }

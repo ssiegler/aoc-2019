@@ -1,6 +1,8 @@
+use std::convert::TryFrom;
+
 pub struct Computer {
     instruction_pointer: usize,
-    memory: Vec<usize>,
+    memory: Vec<i32>,
 }
 
 impl Default for Computer {
@@ -13,7 +15,7 @@ impl Default for Computer {
 }
 
 impl Computer {
-    pub fn load(&mut self, program: &[usize]) {
+    pub fn load(&mut self, program: &[i32]) {
         self.instruction_pointer = 0;
         self.memory = program.to_vec();
     }
@@ -23,7 +25,7 @@ impl Computer {
         self.memory[2] = 2;
     }
 
-    pub fn set_inputs(&mut self, noun: usize, verb: usize) {
+    pub fn set_inputs(&mut self, noun: i32, verb: i32) {
         self.memory[1] = noun;
         self.memory[2] = verb;
     }
@@ -34,30 +36,40 @@ impl Computer {
         }
     }
 
-    pub fn get_output(&self) -> usize {
+    pub fn get_output(&self) -> i32 {
         self.memory[0]
     }
 
     fn load_opcode(&self) -> usize {
-        self.memory[self.instruction_pointer]
+        usize::try_from(self.memory[self.instruction_pointer]).expect("Invalid opcode")
     }
 
-    fn load_argument(&self, index: usize) -> usize {
+    fn load_argument(&self, index: usize) -> i32 {
         self.memory[self.instruction_pointer + index]
     }
 
     fn execute_operation(&mut self) {
         match self.load_opcode() {
             1 => {
-                let result_address = self.load_argument(3);
+                let result_address =
+                    usize::try_from(self.load_argument(3)).expect("Invalid address");
+                let operand1_address =
+                    usize::try_from(self.load_argument(1)).expect("Invalid address");
+                let operand2_address =
+                    usize::try_from(self.load_argument(2)).expect("Invalid address");
                 self.memory[result_address] =
-                    self.memory[self.load_argument(1)] + self.memory[self.load_argument(2)];
+                    self.memory[operand1_address] + self.memory[operand2_address];
                 self.instruction_pointer += 4;
             }
             2 => {
-                let result_address = self.load_argument(3);
+                let result_address =
+                    usize::try_from(self.load_argument(3)).expect("Invalid address");
+                let operand1_address =
+                    usize::try_from(self.load_argument(1)).expect("Invalid address");
+                let operand2_address =
+                    usize::try_from(self.load_argument(2)).expect("Invalid address");
                 self.memory[result_address] =
-                    self.memory[self.load_argument(1)] * self.memory[self.load_argument(2)];
+                    self.memory[operand1_address] * self.memory[operand2_address];
                 self.instruction_pointer += 4;
             }
             _ => {}
@@ -74,7 +86,7 @@ mod tests {
         let mut computer = Computer::default();
         computer.load(&[1, 0, 0, 0, 99]);
         computer.execute_program();
-        assert_eq!(vec![2, 0, 0, 0, 99], computer.memory);
+        assert_eq!(computer.memory, vec![2, 0, 0, 0, 99]);
     }
 
     #[test]
@@ -82,7 +94,7 @@ mod tests {
         let mut computer = Computer::default();
         computer.load(&[2, 3, 0, 3, 99]);
         computer.execute_program();
-        assert_eq!(vec![2, 3, 0, 6, 99], computer.memory);
+        assert_eq!(computer.memory, vec![2, 3, 0, 6, 99]);
     }
 
     #[test]
@@ -90,7 +102,7 @@ mod tests {
         let mut computer = Computer::default();
         computer.load(&[2, 4, 4, 5, 99, 0]);
         computer.execute_program();
-        assert_eq!(vec![2, 4, 4, 5, 99, 9801], computer.memory);
+        assert_eq!(computer.memory, vec![2, 4, 4, 5, 99, 9801]);
     }
 
     #[test]
@@ -98,6 +110,14 @@ mod tests {
         let mut computer = Computer::default();
         computer.load(&[1, 1, 1, 4, 99, 5, 6, 0, 99]);
         computer.execute_program();
-        assert_eq!(vec![30, 1, 1, 4, 2, 5, 6, 0, 99], computer.memory);
+        assert_eq!(computer.memory, vec![30, 1, 1, 4, 2, 5, 6, 0, 99]);
+    }
+
+    #[test]
+    fn supports_negative_numbers() {
+        let mut computer = Computer::default();
+        computer.load(&[1, 5, 6, 0, 99, 5, -6]);
+        computer.execute_program();
+        assert_eq!(computer.memory, vec![-1, 5, 6, 0, 99, 5, -6]);
     }
 }

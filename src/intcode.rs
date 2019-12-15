@@ -4,6 +4,7 @@ pub struct Computer {
     instruction_pointer: usize,
     memory: Vec<i32>,
     output: Vec<i32>,
+    input: Vec<i32>,
 }
 
 impl Default for Computer {
@@ -12,6 +13,7 @@ impl Default for Computer {
             instruction_pointer: 0,
             memory: vec![99],
             output: vec![],
+            input: vec![],
         }
     }
 }
@@ -74,13 +76,21 @@ impl Computer {
                     self.memory[operand1_address] * self.memory[operand2_address];
                 self.instruction_pointer += 4;
             }
+            3 => {
+                let operand1_address =
+                    usize::try_from(self.load_argument(1)).expect("Invalid address");
+                self.memory[operand1_address] = self.input.pop().expect("Missing input");
+                self.instruction_pointer += 2;
+            }
             4 => {
                 let operand1_address =
                     usize::try_from(self.load_argument(1)).expect("Invalid address");
-                self.output.push(self.load_argument(operand1_address));
+                self.output.push(self.memory[operand1_address]);
                 self.instruction_pointer += 2;
             }
-            _ => {}
+            _ => {
+                unimplemented!();
+            }
         }
     }
 }
@@ -132,8 +142,27 @@ mod tests {
     #[test]
     fn supports_output() {
         let mut computer = Computer::default();
-        computer.load(&[4, 0, 99]);
+        computer.load(&[4, 3, 99, 23]);
         computer.execute_program();
-        assert_eq!(computer.output, &[4]);
+        assert_eq!(computer.output, &[23]);
+    }
+
+    #[test]
+    fn supports_input() {
+        let mut computer = Computer::default();
+        computer.load(&[3, 0, 99]);
+        computer.input.push(13);
+        computer.execute_program();
+        assert_eq!(computer.memory, &[13, 0, 99]);
+    }
+
+    #[test]
+    fn can_echo() {
+        let mut computer = Computer::default();
+        computer.load(&[3, 0, 4, 0, 99]);
+        computer.input.push(13);
+        computer.execute_program();
+        assert_eq!(computer.memory, &[13, 0, 4, 0, 99]);
+        assert_eq!(computer.output, &[13]);
     }
 }

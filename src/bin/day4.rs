@@ -1,5 +1,3 @@
-#![feature(is_sorted)]
-
 use std::env;
 use std::ops::RangeInclusive;
 
@@ -23,7 +21,8 @@ fn determine_range() -> RangeInclusive<u32> {
 
 fn fits_facts(candidate: u32) -> bool {
     let digits: Vec<u32> = to_digits(candidate);
-    digits.windows(2).any(|digits| digits[0] == digits[1]) && digits.is_sorted()
+    digits.windows(2).any(|digits| digits[0] == digits[1])
+        && (0..digits.len() - 1).all(|i| digits[i] <= digits[i + 1])
 }
 
 fn fits_additional_rule(candidate: u32) -> bool {

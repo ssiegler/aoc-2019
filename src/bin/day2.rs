@@ -11,8 +11,8 @@ fn main() {
     computer.restore_alarm_state();
     computer.execute_program();
     println!("Program alarm output: {}", computer.get_output());
-    let (noun, verb) = (0usize..=99)
-        .flat_map(|noun| iter::repeat(noun).zip(0usize..99))
+    let (noun, verb) = (0..=99)
+        .flat_map(|noun| iter::repeat(noun).zip(0..99))
         .find(|(noun, verb)| {
             computer.load(&program);
             computer.set_inputs(*noun, *verb);
@@ -23,7 +23,7 @@ fn main() {
     println!("Found inputs: {}", 100 * noun + verb);
 }
 
-fn read_program() -> Vec<usize> {
+fn read_program() -> Vec<i32> {
     io::stdin()
         .lock()
         .split(b',')
@@ -32,7 +32,7 @@ fn read_program() -> Vec<usize> {
             std::str::from_utf8(&bytes)
                 .expect("Encoding problem")
                 .trim()
-                .parse::<usize>()
+                .parse::<i32>()
                 .expect("Could not read program")
         })
         .collect()

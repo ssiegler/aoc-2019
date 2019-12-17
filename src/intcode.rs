@@ -11,7 +11,7 @@ impl Default for Computer {
     fn default() -> Self {
         Computer {
             instruction_pointer: 0,
-            memory: vec![99],
+            memory: vec![],
             output: vec![],
             input: vec![],
         }

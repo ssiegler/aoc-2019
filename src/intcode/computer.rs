@@ -1,86 +1,148 @@
-use std::convert::TryFrom;
+use super::decode;
+use super::decode::{Instruction, Parameter};
 
 #[derive(Default)]
 pub struct Computer {
-    instruction_pointer: usize,
     memory: Vec<i32>,
     output: Vec<i32>,
     input: Vec<i32>,
 }
 
+#[derive(Eq, PartialEq, Debug)]
+pub enum Error {
+    InstructionError { error: decode::Error },
+    UnsupportedOperation { opcode: usize },
+    NoAddress { parameter: Parameter },
+    InvalidAddress { address: usize },
+    ParameterCount { expected: usize, got: usize },
+    MissingInput,
+}
+
+impl Error {
+    fn no_address(parameter: Parameter) -> Self {
+        Error::NoAddress { parameter }
+    }
+}
+
+impl From<decode::Error> for Error {
+    fn from(error: decode::Error) -> Self {
+        Error::InstructionError { error }
+    }
+}
+
 impl Computer {
-    pub fn load(&mut self, program: &[i32]) {
-        self.instruction_pointer = 0;
+    pub fn execute(program: &[i32], input: &[i32]) -> Result<Vec<i32>, Error> {
+        let mut computer = Computer::default();
+        computer.load_program(program);
+        computer.load_input(input);
+        computer.execute_program()?;
+        Ok(computer.output)
+    }
+
+    pub fn execute_with_memory_io(program: &[i32], noun: i32, verb: i32) -> Result<i32, Error> {
+        let mut computer = Computer::default();
+        computer.load_program(program);
+        computer.memory[1] = noun;
+        computer.memory[2] = verb;
+        computer.execute_program()?;
+        Ok(computer.memory[0])
+    }
+
+    fn load_program(&mut self, program: &[i32]) {
         self.memory = program.to_vec();
     }
 
-    pub fn restore_alarm_state(&mut self) {
-        self.memory[1] = 12;
-        self.memory[2] = 2;
+    fn load_input(&mut self, input: &[i32]) {
+        self.input = input.to_vec();
     }
 
-    pub fn set_inputs(&mut self, noun: i32, verb: i32) {
-        self.memory[1] = noun;
-        self.memory[2] = verb;
-    }
-
-    pub fn execute_program(&mut self) {
-        while self.load_opcode() != 99 {
-            self.execute_operation();
+    fn execute_program(&mut self) -> Result<(), Error> {
+        let mut instruction_pointer = 0;
+        loop {
+            let Instruction {
+                opcode,
+                parameters,
+                length,
+            } = Instruction::decode(&self.memory[instruction_pointer..])?;
+            instruction_pointer += length;
+            match opcode {
+                1 => self.add(&parameters)?,
+                2 => self.multiply(&parameters)?,
+                3 => self.input(&parameters)?,
+                4 => self.output(&parameters)?,
+                99 => return Ok(()),
+                _ => return Err(Error::UnsupportedOperation { opcode }),
+            }
         }
     }
 
-    pub fn get_output(&self) -> i32 {
-        self.memory[0]
+    fn store(&mut self, parameter: Parameter, value: i32) -> Result<(), Error> {
+        if let Parameter::Address { address } = parameter {
+            self.memory[address] = value;
+            Ok(())
+        } else {
+            Err(Error::no_address(parameter))
+        }
     }
 
-    fn load_opcode(&self) -> usize {
-        usize::try_from(self.memory[self.instruction_pointer]).expect("Invalid opcode")
+    fn load(&self, parameter: Parameter) -> Result<i32, Error> {
+        match parameter {
+            Parameter::Address { address } => self
+                .memory
+                .get(address)
+                .cloned()
+                .ok_or(Error::InvalidAddress { address }),
+            Parameter::Value { value } => Ok(value),
+        }
     }
 
-    fn load_argument(&self, index: usize) -> i32 {
-        self.memory[self.instruction_pointer + index]
+    fn binary_operation(
+        &mut self,
+        parameters: &[Parameter],
+        operation: fn(i32, i32) -> i32,
+    ) -> Result<(), Error> {
+        if parameters.len() == 3 {
+            self.store(
+                parameters[2],
+                operation(self.load(parameters[0])?, self.load(parameters[1])?),
+            )
+        } else {
+            Err(Error::ParameterCount {
+                expected: 3,
+                got: parameters.len(),
+            })
+        }
     }
 
-    fn execute_operation(&mut self) {
-        match self.load_opcode() {
-            1 => {
-                let result_address =
-                    usize::try_from(self.load_argument(3)).expect("Invalid address");
-                let operand1_address =
-                    usize::try_from(self.load_argument(1)).expect("Invalid address");
-                let operand2_address =
-                    usize::try_from(self.load_argument(2)).expect("Invalid address");
-                self.memory[result_address] =
-                    self.memory[operand1_address] + self.memory[operand2_address];
-                self.instruction_pointer += 4;
-            }
-            2 => {
-                let result_address =
-                    usize::try_from(self.load_argument(3)).expect("Invalid address");
-                let operand1_address =
-                    usize::try_from(self.load_argument(1)).expect("Invalid address");
-                let operand2_address =
-                    usize::try_from(self.load_argument(2)).expect("Invalid address");
-                self.memory[result_address] =
-                    self.memory[operand1_address] * self.memory[operand2_address];
-                self.instruction_pointer += 4;
-            }
-            3 => {
-                let operand1_address =
-                    usize::try_from(self.load_argument(1)).expect("Invalid address");
-                self.memory[operand1_address] = self.input.pop().expect("Missing input");
-                self.instruction_pointer += 2;
-            }
-            4 => {
-                let operand1_address =
-                    usize::try_from(self.load_argument(1)).expect("Invalid address");
-                self.output.push(self.memory[operand1_address]);
-                self.instruction_pointer += 2;
-            }
-            _ => {
-                unimplemented!();
-            }
+    fn add(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
+        self.binary_operation(parameters, |a, b| a + b)
+    }
+
+    fn multiply(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
+        self.binary_operation(parameters, |a, b| a * b)
+    }
+
+    fn input(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
+        if parameters.len() == 1 {
+            let input = self.input.pop().ok_or(Error::MissingInput)?;
+            self.store(parameters[0], input)
+        } else {
+            Err(Error::ParameterCount {
+                expected: 1,
+                got: parameters.len(),
+            })
+        }
+    }
+
+    fn output(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
+        if parameters.len() == 1 {
+            self.output.push(self.load(parameters[0])?);
+            Ok(())
+        } else {
+            Err(Error::ParameterCount {
+                expected: 1,
+                got: parameters.len(),
+            })
         }
     }
 }
@@ -92,66 +154,66 @@ mod tests {
     #[test]
     fn opcode_1_adds_arguments() {
         let mut computer = Computer::default();
-        computer.load(&[1, 0, 0, 0, 99]);
-        computer.execute_program();
+        computer.load_program(&[1, 0, 0, 0, 99]);
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, vec![2, 0, 0, 0, 99]);
     }
 
     #[test]
     fn opcode_2_multiplies_arguments() {
         let mut computer = Computer::default();
-        computer.load(&[2, 3, 0, 3, 99]);
-        computer.execute_program();
+        computer.load_program(&[2, 3, 0, 3, 99]);
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, vec![2, 3, 0, 6, 99]);
     }
 
     #[test]
     fn opcode_99_terminates() {
         let mut computer = Computer::default();
-        computer.load(&[2, 4, 4, 5, 99, 0]);
-        computer.execute_program();
+        computer.load_program(&[2, 4, 4, 5, 99, 0]);
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, vec![2, 4, 4, 5, 99, 9801]);
     }
 
     #[test]
     fn programs_can_self_modify() {
         let mut computer = Computer::default();
-        computer.load(&[1, 1, 1, 4, 99, 5, 6, 0, 99]);
-        computer.execute_program();
+        computer.load_program(&[1, 1, 1, 4, 99, 5, 6, 0, 99]);
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, vec![30, 1, 1, 4, 2, 5, 6, 0, 99]);
     }
 
     #[test]
     fn supports_negative_numbers() {
         let mut computer = Computer::default();
-        computer.load(&[1, 5, 6, 0, 99, 5, -6]);
-        computer.execute_program();
+        computer.load_program(&[1, 5, 6, 0, 99, 5, -6]);
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, vec![-1, 5, 6, 0, 99, 5, -6]);
     }
 
     #[test]
     fn supports_output() {
         let mut computer = Computer::default();
-        computer.load(&[4, 3, 99, 23]);
-        computer.execute_program();
+        computer.load_program(&[4, 3, 99, 23]);
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.output, &[23]);
     }
 
     #[test]
     fn supports_input() {
         let mut computer = Computer::default();
-        computer.load(&[3, 0, 99]);
+        computer.load_program(&[3, 0, 99]);
         computer.input.push(13);
-        computer.execute_program();
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, &[13, 0, 99]);
     }
 
     #[test]
     fn can_echo() {
         let mut computer = Computer::default();
-        computer.load(&[3, 0, 4, 0, 99]);
+        computer.load_program(&[3, 0, 4, 0, 99]);
         computer.input.push(13);
-        computer.execute_program();
+        computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, &[13, 0, 4, 0, 99]);
         assert_eq!(computer.output, &[13]);
     }

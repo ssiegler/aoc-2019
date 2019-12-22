@@ -1,21 +1,11 @@
 use std::convert::TryFrom;
 
+#[derive(Default)]
 pub struct Computer {
     instruction_pointer: usize,
     memory: Vec<i32>,
     output: Vec<i32>,
     input: Vec<i32>,
-}
-
-impl Default for Computer {
-    fn default() -> Self {
-        Computer {
-            instruction_pointer: 0,
-            memory: vec![],
-            output: vec![],
-            input: vec![],
-        }
-    }
 }
 
 impl Computer {

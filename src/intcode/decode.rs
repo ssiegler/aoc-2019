@@ -33,8 +33,9 @@ impl Instruction {
         let parameter_modes = opcode / 100;
         let opcode = opcode % 100;
         let parameters = match opcode {
-            1 | 2 => decode_parameters(&program[1..4], parameter_modes),
+            1 | 2 | 7 | 8 => decode_parameters(&program[1..4], parameter_modes),
             3 | 4 => decode_parameters(&program[1..2], parameter_modes),
+            5 | 6 => decode_parameters(&program[1..3], parameter_modes),
             99 => Ok(vec![]),
             _ => Err(Error::InvalidOpcode { opcode }),
         }?;
@@ -144,5 +145,36 @@ mod tests {
                 length: 4,
             })
         );
+    }
+
+    #[test]
+    fn decode_equals() {
+        assert_eq!(
+            Instruction::decode(&[8, 0, 3, 0]),
+            Ok(Instruction {
+                opcode: 8,
+                parameters: vec![
+                    Parameter::address(0),
+                    Parameter::address(3),
+                    Parameter::address(0)
+                ],
+                length: 4,
+            })
+        )
+    }
+    #[test]
+    fn decode_less_than() {
+        assert_eq!(
+            Instruction::decode(&[1007, 0, 100, 0]),
+            Ok(Instruction {
+                opcode: 7,
+                parameters: vec![
+                    Parameter::address(0),
+                    Parameter::value(100),
+                    Parameter::address(0)
+                ],
+                length: 4,
+            })
+        )
     }
 }

@@ -70,10 +70,26 @@ impl Computer {
                 2 => self.multiply(&parameters)?,
                 3 => self.input(&parameters)?,
                 4 => self.output(&parameters)?,
+                5 => self.jump(&mut instruction_pointer, &parameters, |value| value != 0)?,
+                6 => self.jump(&mut instruction_pointer, &parameters, |value| value == 0)?,
+                7 => self.less_than(&parameters)?,
+                8 => self.equals(&parameters)?,
                 99 => return Ok(()),
                 _ => return Err(Error::UnsupportedOperation { opcode }),
             }
         }
+    }
+
+    fn jump(
+        &self,
+        instruction_pointer: &mut usize,
+        parameters: &[Parameter],
+        predicate: fn(i32) -> bool,
+    ) -> Result<(), Error> {
+        if predicate(self.load(parameters[0])?) {
+            *instruction_pointer = self.load(parameters[1])? as usize
+        }
+        Ok(())
     }
 
     fn store(&mut self, parameter: Parameter, value: i32) -> Result<(), Error> {
@@ -120,6 +136,14 @@ impl Computer {
 
     fn multiply(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
         self.binary_operation(parameters, |a, b| a * b)
+    }
+
+    fn equals(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
+        self.binary_operation(parameters, |a, b| if a == b { 1 } else { 0 })
+    }
+
+    fn less_than(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
+        self.binary_operation(parameters, |a, b| if a < b { 1 } else { 0 })
     }
 
     fn input(&mut self, parameters: &[Parameter]) -> Result<(), Error> {
@@ -216,5 +240,40 @@ mod tests {
         computer.execute_program().expect("Execution failed");
         assert_eq!(computer.memory, &[13, 0, 4, 0, 99]);
         assert_eq!(computer.output, &[13]);
+    }
+
+    #[test]
+    fn can_compare_equality() {
+        assert_eq!(
+            Computer::execute(&[3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], &[8]),
+            Ok(vec![1])
+        );
+        assert_eq!(
+            Computer::execute(&[3, 3, 1108, -1, 8, 3, 4, 3, 99], &[8]),
+            Ok(vec![1])
+        );
+    }
+
+    #[test]
+    fn can_compare_order() {
+        assert_eq!(
+            Computer::execute(&[3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], &[8]),
+            Ok(vec![0])
+        );
+        assert_eq!(
+            Computer::execute(&[3, 3, 1107, -1, 8, 3, 4, 3, 99], &[8]),
+            Ok(vec![0])
+        );
+    }
+
+    #[test]
+    fn can_jump() {
+        assert_eq!(
+            Computer::execute(
+                &[3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
+                &[2]
+            ),
+            Ok(vec![1])
+        );
     }
 }

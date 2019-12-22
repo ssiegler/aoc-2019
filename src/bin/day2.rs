@@ -1,11 +1,9 @@
-use std::io;
-use std::io::BufRead;
 use std::iter;
 
-use aoc_2019::intcode::Computer;
+use aoc_2019::intcode::{io::read_program, Computer};
 
 fn main() {
-    let program = read_program();
+    let program = read_program().expect("Could not read program");
     println!(
         "Program alarm output: {}",
         Computer::execute_with_memory_io(&program, 12, 2).expect("Execution failed")
@@ -18,19 +16,4 @@ fn main() {
         })
         .expect("No solution found");
     println!("Found inputs: {}", 100 * noun + verb);
-}
-
-fn read_program() -> Vec<i32> {
-    io::stdin()
-        .lock()
-        .split(b',')
-        .map(|bytes| {
-            let bytes = bytes.expect("IO problem");
-            std::str::from_utf8(&bytes)
-                .expect("Encoding problem")
-                .trim()
-                .parse::<i32>()
-                .expect("Could not read program")
-        })
-        .collect()
 }

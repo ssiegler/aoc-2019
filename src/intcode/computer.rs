@@ -53,7 +53,7 @@ impl Computer {
     }
 
     fn load_input(&mut self, input: &[i32]) {
-        self.input = input.to_vec();
+        self.input = input.iter().cloned().rev().collect();
     }
 
     fn execute_program(&mut self) -> Result<(), Error> {
